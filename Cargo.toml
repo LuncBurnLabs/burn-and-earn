@@ -1,0 +1,16 @@
+[package]
+name = "burn-and-earn"
+version = "1.0.0"
+authors = ["Dirty Danny"]
+edition = "2021"
+description = "A 0% fee, hyper-deflationary public good raffle dApp for LUNC"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+cosmwasm-std = "1.1.0"
+cw-storage-plus = "1.0.0"
+schemars = "0.8.10"
+serde = { version = "1.0.144", default-features = false, features = ["derive"] }
+thiserror = "1.0.34"
