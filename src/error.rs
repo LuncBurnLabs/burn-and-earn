@@ -3,7 +3,7 @@ use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
-    #[from]
+    #[error("{0}")]
     Std(#[from] StdError),
 
     #[error("Unauthorized: Access denied.")]
