@@ -106,13 +106,14 @@ mod tests {
         let mut config = CONFIG.load(&deps.storage).unwrap();
         config.total_tickets_sold = 6000; 
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
-        
         TICKET_OWNERS.save(deps.as_mut().storage, 1u64, &cosmwasm_std::Addr::unchecked("lucky_winner")).unwrap();
 
-        env.block.time = env.block.time.plus_seconds(config.round_end_time + 10);
+        let target_seconds = config.round_end_time + 10;
+        env.block.time = cosmwasm_std::Timestamp::from_nanos(target_seconds * 1_000_000_000);
+        
         let res = execute(deps.as_mut(), env.clone(), mock_info("bot", &[]), ExecuteMsg::DrawWinner {}).unwrap();
 
-        // ✨ FIXED LINE: Correctly targets index [0] of the inner BankMsg token array list
+        // ✨ ARRAY INDEX INDEX FIX: Safely checks item index [0] of the list vector
         let has_mega_burn_msg = res.messages.iter().any(|msg| {
             if let cosmwasm_std::CosmosMsg::Bank(cosmwasm_std::BankMsg::Send { to_address, amount }) = &msg.msg {
                 to_address == "terra1sk8..._DEAD_BURN_ADDRESS" && amount[0].amount == Uint128::new(970_000_000_000_000)
@@ -122,5 +123,36 @@ mod tests {
         });
 
         assert!(has_mega_burn_msg);
+    }
+
+    #[test]
+    fn test_nuclear_burn_skips_when_dice_roll_is_not_one() {
+        let mut deps = mock_dependencies();
+        let mut env = mock_env();
+        setup_contract(deps.as_mut(), &env);
+
+        let one_billion_lunc = Uint128::new(1_000_000_000_000_000);
+        deps.querier.update_balance(env.contract.address.clone(), coins(one_billion_lunc.u128(), "ulunc"));
+
+        let mut config = CONFIG.load(&deps.storage).unwrap();
+        config.total_tickets_sold = 6000; 
+        CONFIG.save(deps.as_mut().storage, &config).unwrap();
+        TICKET_OWNERS.save(deps.as_mut().storage, 1u64, &cosmwasm_std::Addr::unchecked("lucky_winner")).unwrap();
+
+        let target_seconds = config.round_end_time + 10;
+        env.block.time = cosmwasm_std::Timestamp::from_nanos((target_seconds * 1_000_000_000) + 49);
+        
+        let res = execute(deps.as_mut(), env.clone(), mock_info("bot", &[]), ExecuteMsg::DrawWinner {}).unwrap();
+
+        // ✨ ARRAY INDEX FIX: Safely checks item index [0] of the list vector
+        let has_mega_burn_msg = res.messages.iter().any(|msg| {
+            if let cosmwasm_std::CosmosMsg::Bank(cosmwasm_std::BankMsg::Send { to_address, amount }) = &msg.msg {
+                to_address == "terra1sk8..._DEAD_BURN_ADDRESS" && amount[0].amount == Uint128::new(970_000_000_000_000)
+            } else {
+                false
+            }
+        });
+
+        assert!(!has_mega_burn_msg); 
     }
 }
